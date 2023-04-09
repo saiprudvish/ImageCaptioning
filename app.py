@@ -5,6 +5,11 @@ from tensorflow.keras.preprocessing.image import load_img, img_to_array
 
 #from keras.preprocessing.image import load_img, img_to_array
 import numpy as np
+import os
+#from keytotext import pipeline
+#nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
+from flask import send_file
+
 
 # Load the pre-trained model
 model = tf.keras.models.load_model('version2.h5')
@@ -25,6 +30,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 from PIL import Image
+from keytotext import pipeline
+nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
+
+
+from pymongo import MongoClient
+
+import pymongo
+import ssl
+import json
+
+
+
 
 
 
@@ -32,7 +49,8 @@ from PIL import Image
 
 def generate_caption(img):
     
-
+    
+    
     # Generate the caption
         # Preprocess the image
     #img = preprocess_image(img)
@@ -77,33 +95,48 @@ def generate_caption(img):
         for y in range(len(df)):
             if x[0]==df.rgb[y][0] and x[1]==df.rgb[y][1] and x[2]==df.rgb[y][2]:
                 listOfObjects.append(df.name[y])
+    caption=nlp(listOfObjects)
+    # Return caption and image URL as a JSON object
+    #response = {'caption': caption, 'image_url': 'path/to/image.jpg'}
+    return caption
     
-    
-   
-
-    return listOfObjects
 
 
 
 
 # Define the Flask routes
+# @app.route('/', methods=['GET', 'POST'])
+# def home():
+#     if request.method == 'POST':
+#         # Get the uploaded image file
+#         image_file = request.files['image']
+#         # Generate the caption for the image
+#         caption = generate_caption(image_file)
+      
+#         # Render the HTML template with the caption
+#         return render_template('index.html', caption=caption)
+
+#     else:
+#         # Render the HTML template with the form to upload an image
+#         return render_template('index.html')
+
+
+
+
 @app.route('/', methods=['GET', 'POST'])
-def home():
+def index():
+    caption = None
+    filename = None
     if request.method == 'POST':
-        # Get the uploaded image file
-        image_file = request.files['image']
-
-        # Generate the caption for the image
-       # caption = "hello i am prudvish"
-        # Generate the caption for the image
-        caption = generate_caption(image_file)
-
-        # Render the HTML template with the caption
-        return render_template('index.html', caption=caption)
-
-    else:
-        # Render the HTML template with the form to upload an image
-        return render_template('index.html')
-
+        file = request.files['image']
+        if file:
+            # Save the image to the static/images folder
+            filename = file.filename
+            
+            # Generate the caption using your generate_caption() function
+            caption = generate_caption(file)
+            file.save(os.path.join(app.static_folder, 'images', filename))
+            # print("file saved");
+    return render_template('index.html', caption=caption, filename=filename)
 if __name__ == '__main__':
     app.run(debug=True)
