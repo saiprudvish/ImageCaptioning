@@ -2,79 +2,61 @@ from flask import Flask, render_template, request
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-
-#from keras.preprocessing.image import load_img, img_to_array
+import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import cv2
+from PIL import Image
+import numpy as np
+from keytotext import pipeline
 import os
-#from keytotext import pipeline
-#nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
-from flask import send_file
-
-
-# Load the pre-trained model
-model = tf.keras.models.load_model('version2.h5')
 
 # Define the Flask application
 app = Flask(__name__, template_folder='my_templates')
 
-#app = Flask(__name__)
+nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
+
+# Load the pre-trained model
+model = tf.keras.models.load_model('version2.h5')
 
 # Define the image size and maximum sequence length
 img_size = (224, 224)
 max_length = 32
 
+def read_image(x):
+    x = cv2.imread(x, cv2.IMREAD_COLOR)
+    x = cv2.resize(x, (W, H))
+    x = x/255.0
+    x = x.astype(np.float32) ##image dtype is Float32
+    return x
 
-import pandas as pd
-#from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-from PIL import Image
-from keytotext import pipeline
-nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
-
-
-from pymongo import MongoClient
-
-import pymongo
-import ssl
-import json
-
-
-
-
-
-
-
+H=800
+W=1200
 
 def generate_caption(img):
-    
-    
-    
-    # Generate the caption
-        # Preprocess the image
-    #img = preprocess_image(img)
-    #img = cv2.imread(img)
-    image_buffer = np.frombuffer(img.read(), np.uint8)
-    img = cv2.imdecode(image_buffer, cv2.IMREAD_COLOR)
-    img.shape = (1,800,1200,3)
-    p=model.predict(img)
+    new_size = (800, 1200)
+    resized_img = img.resize(new_size)
+
+    # Convert the image to a numpy array
+    img_array = np.array(resized_img)
+
+    # Reshape the image array to the required shape
+    reshaped_img = img_array.reshape((1, 800, 1200, 3))
+    p=model.predict(reshaped_img)
     p1 = np.argmax(p, axis=3)
 
     # Reshape the predictions array
-    p1 = p1.reshape(-1, 800, 1200)
+    p1 = p1.reshape(-1,800, 1200)
     df = pd.read_csv('class_dict_seg.csv')
-      
-
+    
     # Load the cmap array
     cmap = np.array(list(df[[' r', ' g', ' b']].transpose().to_dict('list').values()))
-
-    # Select an image index to save
 
     for i in range(p1.shape[0]):
         # Create a PIL image from the predicted labels using the cmap colors
         predicted_img = Image.fromarray(cmap[p1[i]].astype(np.uint8))
-    
+    #predicted_img = Image.fromarray(cmap[p1.shape[0]].astype(np.uint8))
+    #cv2.imwrite("pped.jpg",predicted_img)
     img = predicted_img
 
     uniqueColors = set()
@@ -95,32 +77,14 @@ def generate_caption(img):
         for y in range(len(df)):
             if x[0]==df.rgb[y][0] and x[1]==df.rgb[y][1] and x[2]==df.rgb[y][2]:
                 listOfObjects.append(df.name[y])
-    caption=nlp(listOfObjects)
-    # Return caption and image URL as a JSON object
-    #response = {'caption': caption, 'image_url': 'path/to/image.jpg'}
-    return caption
-    
-
-
-
-
-# Define the Flask routes
-# @app.route('/', methods=['GET', 'POST'])
-# def home():
-#     if request.method == 'POST':
-#         # Get the uploaded image file
-#         image_file = request.files['image']
-#         # Generate the caption for the image
-#         caption = generate_caption(image_file)
-      
-#         # Render the HTML template with the caption
-#         return render_template('index.html', caption=caption)
-
-#     else:
-#         # Render the HTML template with the form to upload an image
-#         return render_template('index.html')
-
-
+    if 'unlabeled' in listOfObjects:
+        listOfObjects.remove('unlabeled')
+    if 'ar-marker' in listOfObjects:
+        listOfObjects.remove('ar-marker')
+    output_string=nlp(listOfObjects)
+   
+    print(listOfObjects)
+    return output_string
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -129,12 +93,13 @@ def index():
     filename = None
     if request.method == 'POST':
         file = request.files['image']
+        img = Image.open(file)
         if file:
             # Save the image to the static/images folder
             filename = file.filename
             
             # Generate the caption using your generate_caption() function
-            caption = generate_caption(file)
+            caption = generate_caption(img)
             file.save(os.path.join(app.static_folder, 'images', filename))
             # print("file saved");
     return render_template('index.html', caption=caption, filename=filename)
