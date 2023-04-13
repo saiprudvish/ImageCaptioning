@@ -97,11 +97,10 @@ def index():
         if file:
             # Save the image to the static/images folder
             filename = file.filename
-            
-            # Generate the caption using your generate_caption() function
             caption = generate_caption(img)
-            file.save(os.path.join(app.static_folder, 'images', filename))
-            # print("file saved");
+            # Generate the caption using your generate_caption() function
+        
+          
     return render_template('index.html', caption=caption, filename=filename)
 if __name__ == '__main__':
     app.run(debug=True)

@@ -13,6 +13,13 @@ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
   display: inline-block;
 }
 
+.box {
+  border: 2px solid rgb(184, 192, 196);
+  padding: 15px;
+  width: 30%;
+
+}
+
 .caption {
   position: absolute;
   bottom: 0;
@@ -32,21 +39,43 @@ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 </head>
 <body>
 
-   
+  <script>
+     
+
+		function displayImage() {
+			var input = document.getElementById("imageInput");
+			var img = document.getElementById("displayImage");
+			img.src = URL.createObjectURL(input.files[0]);
+		}
+	</script> 
+
 	<h1 class="text-center text-light mt-3 ">IMAGE CAPTIONING USING DEEP LEARNING</h1>
 
   <form action="/" method="POST" class="text-center mt-3" enctype="multipart/form-data">
     <label for="image" class="text-light mx-3">Select an image : -  </label>
 
-<input type="file" name="image" class="mt-3 text-center text-light"   id="image-input">
-<button type="submit" class="mt-3 text-center btn btn-info"   value="Upload">GENERATE CAPTION </button>
+<input type="file" name="image" class="mt-5 text-center text-light"  id="imageInput" accept="image/*" onchange="displayImage()">
+<button type="submit" class="mt-3 text-center btn btn-info"  value="Upload">GENERATE CAPTION </button>
+
+
+
 
 </form>
-<img src="./images/002.jpeg" alt="" width="200">
-{% if caption %} 
-	<img src="{{url_for( 'static', filename='/images/'+filename )}}" width="300"  >
-	<p class="text-light ">{{caption}}</p>
-{% endif %}
+
+
+<div class="text-center">
+  {% if caption %} 
+    <!-- <img id="displayImage" src="#" alt="displayImage" class="mt-5" width="500" height="300"> -->
+    <p class="text-light text-center text-capitalize box mx-auto mt-5">{{caption}}</p>
+  {% else %}
+    <img id="displayImage" src="#" alt=" Image Not Chosen for Caption Generation " class="mt-5 box mx-2 text-light" >
+  {% endif %}
+</div>
+
+
+
+<br><br>
+	
 
 </body>
 </html> 
