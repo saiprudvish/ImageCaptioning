@@ -1,62 +1,80 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template,  request, url_for
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-
-#from keras.preprocessing.image import load_img, img_to_array
+import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
-
-# Load the pre-trained model
-model = tf.keras.models.load_model('version2.h5')
+import cv2
+from PIL import Image
+import numpy as np
+from keytotext import pipeline
+import os
 
 # Define the Flask application
 app = Flask(__name__, template_folder='my_templates')
 
-#app = Flask(__name__)
+nlp = pipeline("mrm8488/t5-base-finetuned-common_gen")
+
+# Load the pre-trained model
+model = tf.keras.models.load_model('version2.h5')
 
 # Define the image size and maximum sequence length
 img_size = (224, 224)
 max_length = 32
 
+def read_image(x):
+    x = cv2.imread(x, cv2.IMREAD_COLOR)
+    x = cv2.resize(x, (W, H))
+    x = x/255.0
+    x = x.astype(np.float32) ##image dtype is Float32
+    return x
 
-import pandas as pd
-#from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-from PIL import Image
+H=800
+W=1200
 
 
 
+
+from werkzeug.utils import secure_filename
+import os
+from io import BytesIO
+
+
+def save_image(image_file):
+    filename = secure_filename(image_file.filename)
+    file_path = os.path.join('static', 'uploads', filename)
+    image_file.save(file_path)
+    return file_path
 
 
 def generate_caption(img):
-    
+    # Assume that 'bytes_io' is a BytesIO object containing image data
+    image = img.open(bytes_io)
+    image = img.resize((width, height))
+    new_size = (800, 1200)
+    resized_img = img.resize(new_size)
 
-    # Generate the caption
-        # Preprocess the image
-    #img = preprocess_image(img)
-    #img = cv2.imread(img)
-    image_buffer = np.frombuffer(img.read(), np.uint8)
-    img = cv2.imdecode(image_buffer, cv2.IMREAD_COLOR)
-    img.shape = (1,800,1200,3)
-    p=model.predict(img)
+    # Convert the image to a numpy array
+    img_array = np.array(resized_img)
+
+    # Reshape the image array to the required shape
+    reshaped_img = img_array.reshape((1, 800, 1200, 3))
+    p=model.predict(reshaped_img)
     p1 = np.argmax(p, axis=3)
 
     # Reshape the predictions array
-    p1 = p1.reshape(-1, 800, 1200)
+    p1 = p1.reshape(-1,800, 1200)
     df = pd.read_csv('class_dict_seg.csv')
-      
-
+    
     # Load the cmap array
     cmap = np.array(list(df[[' r', ' g', ' b']].transpose().to_dict('list').values()))
-
-    # Select an image index to save
 
     for i in range(p1.shape[0]):
         # Create a PIL image from the predicted labels using the cmap colors
         predicted_img = Image.fromarray(cmap[p1[i]].astype(np.uint8))
-    
+    #predicted_img = Image.fromarray(cmap[p1.shape[0]].astype(np.uint8))
+    #cv2.imwrite("pped.jpg",predicted_img)
     img = predicted_img
 
     uniqueColors = set()
@@ -77,33 +95,26 @@ def generate_caption(img):
         for y in range(len(df)):
             if x[0]==df.rgb[y][0] and x[1]==df.rgb[y][1] and x[2]==df.rgb[y][2]:
                 listOfObjects.append(df.name[y])
-    
-    
+    if 'unlabeled' in listOfObjects:
+        listOfObjects.remove('unlabeled')
+    if 'ar-marker' in listOfObjects:
+        listOfObjects.remove('ar-marker')
+    output_string=nlp(listOfObjects)
    
+    print(listOfObjects)
+    return output_string
 
-    return listOfObjects
-
-
-
-
-# Define the Flask routes
 @app.route('/', methods=['GET', 'POST'])
-def home():
+def index():
     if request.method == 'POST':
-        # Get the uploaded image file
         image_file = request.files['image']
-
-        # Generate the caption for the image
-       # caption = "hello i am prudvish"
-        # Generate the caption for the image
-        caption = generate_caption(image_file)
-
-        # Render the HTML template with the caption
-        return render_template('index.html', caption=caption)
-
-    else:
-        # Render the HTML template with the form to upload an image
-        return render_template('index.html')
+        if image_file:
+            caption = generate_caption(image_file)
+            image_location = save_image(image_file)
+            
+            img_src = url_for('static', filename='uploads/{}'.format(image_file.filename))
+            return render_template('index.html', caption=caption, img_src=img_src)
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
