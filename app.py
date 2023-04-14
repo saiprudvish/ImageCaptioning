@@ -93,14 +93,13 @@ def index():
     filename = None
     if request.method == 'POST':
         file = request.files['image']
+        file.save('static/images/source.jpg')
         img = Image.open(file)
         if file:
             # Save the image to the static/images folder
             filename = file.filename
             caption = generate_caption(img)
             # Generate the caption using your generate_caption() function
-        
-          
-    return render_template('index.html', caption=caption, filename=filename)
+    return render_template('index.html', caption=caption, image_url="static/images/source.jpg")
 if __name__ == '__main__':
     app.run(debug=True)

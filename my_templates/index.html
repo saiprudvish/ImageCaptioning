@@ -65,7 +65,7 @@ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
 <div class="text-center">
   {% if caption %} 
-    <!-- <img id="displayImage" src="#" alt="displayImage" class="mt-5" width="500" height="300"> -->
+    <img id="displayImage" src="{{image_url}}" alt="displayImage" class="mt-5" width="500" height="300">
     <p class="text-light text-center text-capitalize box mx-auto mt-5">{{caption}}</p>
   {% else %}
     <img id="displayImage" src="#" alt=" Image Not Chosen for Caption Generation " class="mt-5 box mx-2 text-light" >
